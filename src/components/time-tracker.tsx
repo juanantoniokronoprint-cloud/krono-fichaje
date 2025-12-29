@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Worker, TimeEntry, Location } from '../types';
 import { WorkerStorage, TimeEntryStorage, LocationService, calculateTotalHours, calculateOvertime } from '../lib/storage';
-import { formatTime, formatDuration } from '../lib/utils';
+import { formatTime, formatDuration } from '../lib/storage';
 
 interface TimeTrackerProps {
   worker: Worker;

@@ -1,17 +1,26 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { WorkerStorage, TimeEntryStorage } from '../lib/storage';
 
 export default function Navigation() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [activeWorkers, setActiveWorkers] = useState(0);
+  const [totalWorkers, setTotalWorkers] = useState(0);
   const pathname = usePathname();
 
-  // Get counts for navigation badges
-  const activeWorkers = TimeEntryStorage.getActiveEntries().length;
-  const totalWorkers = WorkerStorage.getAll().filter(w => w.isActive).length;
+  // Get counts for navigation badges (client-side only)
+  useEffect(() => {
+    try {
+      setActiveWorkers(TimeEntryStorage.getActiveEntries().length);
+      setTotalWorkers(WorkerStorage.getAll().filter(w => w.isActive).length);
+    } catch (error) {
+      // Ignore errors in SSR
+      console.error('Error loading navigation data:', error);
+    }
+  }, []);
 
   const navigation = [
     {

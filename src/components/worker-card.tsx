@@ -1,8 +1,8 @@
 'use client';
 
 import { Worker, TimeEntry } from '../types';
-import { WorkerStorage, TimeEntryStorage, formatCurrency } from '../lib/storage';
-import { getInitials, getRandomColor, getStatusColor } from '../lib/utils';
+import { WorkerStorage, TimeEntryStorage } from '../lib/storage';
+import { getInitials, getRandomColor, getStatusColor, formatCurrency } from '../lib/utils';
 import { useState } from 'react';
 
 interface WorkerCardProps {
@@ -61,6 +61,7 @@ export default function WorkerCard({ worker, onUpdate, onEdit }: WorkerCardProps
         console.error('Error deleting worker:', error);
       } finally {
         setIsLoading(false);
+      }
     }
   };
 

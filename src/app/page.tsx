@@ -1,9 +1,29 @@
+'use client';
+
+import Link from 'next/link';
+import AppRouter from '../components/app-router';
+
 export default function Home() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-8">
-      <p className="text-lg text-gray-600 dark:text-gray-400">
-        Please wait while we&apos;re working on your request.
-      </p>
-    </main>
+    <div>
+      {/* Quick access banner for admin/workers management */}
+      <div className="bg-blue-600 text-white py-2 px-4">
+        <div className="max-w-7xl mx-auto flex justify-between items-center text-sm">
+          <span>💡 Acceso rápido:</span>
+          <div className="flex gap-4">
+            <Link href="/workers" className="hover:underline font-medium">
+              Gestión de Trabajadores
+            </Link>
+            <Link href="/time-tracking" className="hover:underline font-medium">
+              Control de Tiempo
+            </Link>
+            <Link href="/reports" className="hover:underline font-medium">
+              Reportes
+            </Link>
+          </div>
+        </div>
+      </div>
+      <AppRouter />
+    </div>
   );
 }

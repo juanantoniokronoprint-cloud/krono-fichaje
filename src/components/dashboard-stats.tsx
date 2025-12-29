@@ -2,7 +2,7 @@
 
 import { Worker, TimeEntry } from '../types';
 import { WorkerStorage, TimeEntryStorage } from '../lib/storage';
-import { formatCurrency } from '../lib/storage';
+import { formatCurrency } from '../lib/utils';
 import { useState, useEffect } from 'react';
 
 interface DashboardStatsProps {

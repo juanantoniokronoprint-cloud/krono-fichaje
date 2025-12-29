@@ -1,8 +1,9 @@
 'use client';
 
 import { Worker, TimeEntry, FilterOptions } from '../types';
-import { formatCurrency } from '../lib/storage';
-import { formatTime, formatDate, isToday } from '../lib/storage';
+import { formatCurrency } from '../lib/utils';
+import { formatTime, formatDate } from '../lib/storage';
+import { isToday } from '../lib/utils';
 import { useState } from 'react';
 
 interface ReportsTableProps {

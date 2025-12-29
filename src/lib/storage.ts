@@ -27,13 +27,36 @@ export class WorkerStorage {
 
   static create(worker: Omit<Worker, 'id'>): Worker {
     const workers = this.getAll();
+    const id = generateId();
+    
+    // Generate employeeNumber if not provided (use sequential number)
+    let employeeNumber = worker.employeeNumber;
+    if (!employeeNumber) {
+      employeeNumber = this.generateEmployeeNumber(workers);
+    }
+    
     const newWorker: Worker = {
       ...worker,
-      id: generateId(),
+      employeeNumber,
+      id,
     };
     workers.push(newWorker);
     this.save(workers);
     return newWorker;
+  }
+
+  static generateEmployeeNumber(workers: Worker[]): string {
+    // Generate a unique 6-digit employee number
+    // Find the highest existing number and add 1
+    const existingNumbers = workers
+      .map(w => w.employeeNumber ? parseInt(w.employeeNumber) : 0)
+      .filter(n => !isNaN(n) && n > 0);
+    
+    const maxNumber = existingNumbers.length > 0 ? Math.max(...existingNumbers) : 0;
+    const newNumber = maxNumber + 1;
+    
+    // Ensure it's 6 digits with leading zeros
+    return newNumber.toString().padStart(6, '0');
   }
 
   static update(id: string, updates: Partial<Worker>): Worker | null {
@@ -192,6 +215,21 @@ export function calculateTotalHours(clockIn: string, clockOut: string, breakMinu
   const diffMs = end.getTime() - start.getTime();
   const totalMinutes = Math.floor(diffMs / (1000 * 60));
   return Math.max(0, (totalMinutes - breakMinutes) / 60);
+}
+
+// Import the new time calculator
+import { TimeCalculator, DEFAULT_SHIFT_POLICY } from './time-calculations';
+
+export function calculateEntryHours(entry: TimeEntry): ReturnType<typeof TimeCalculator.calculateEntryHours> {
+  return TimeCalculator.calculateEntryHours(entry, DEFAULT_SHIFT_POLICY);
+}
+
+export function calculateWeeklyHours(entries: TimeEntry[]): ReturnType<typeof TimeCalculator.calculateWeeklyHours> {
+  return TimeCalculator.calculateWeeklyHours(entries, DEFAULT_SHIFT_POLICY);
+}
+
+export function calculatePayroll(workerId: string, entries: TimeEntry[], hourlyRate: number): ReturnType<typeof TimeCalculator.calculatePayroll> {
+  return TimeCalculator.calculatePayroll(workerId, entries, hourlyRate, DEFAULT_SHIFT_POLICY);
 }
 
 export function isOvertime(hours: number, standardHours: number = 8): boolean {

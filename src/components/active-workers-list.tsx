@@ -4,7 +4,7 @@ import { Worker, TimeEntry } from '../types';
 import { WorkerStorage, TimeEntryStorage } from '../lib/storage';
 import { formatTime, formatDuration } from '../lib/storage';
 import { getInitials, getRandomColor, getStatusColor } from '../lib/utils';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 
 interface ActiveWorkersListProps {
   workers: Worker[];
@@ -14,6 +14,18 @@ interface ActiveWorkersListProps {
 export default function ActiveWorkersList({ workers, timeEntries }: ActiveWorkersListProps) {
   const [elapsedTimes, setElapsedTimes] = useState<Record<string, string>>({});
   const [currentTime, setCurrentTime] = useState(new Date());
+
+  // Calculate active workers
+  const activeWorkers = useMemo(() => {
+    const activeEntries = timeEntries.filter(entry => !entry.clockOut);
+    return activeEntries.map(entry => {
+      const worker = workers.find(w => w.id === entry.workerId);
+      return {
+        ...entry,
+        worker,
+      };
+    }).filter(item => item.worker) as Array<TimeEntry & { worker: Worker }>;
+  }, [workers, timeEntries]);
 
   useEffect(() => {
     // Update current time every second
@@ -54,15 +66,6 @@ export default function ActiveWorkersList({ workers, timeEntries }: ActiveWorker
     
     return () => clearInterval(elapsedTimer);
   }, [activeWorkers]);
-
-  const activeEntries = timeEntries.filter(entry => !entry.clockOut);
-  const activeWorkers = activeEntries.map(entry => {
-    const worker = workers.find(w => w.id === entry.workerId);
-    return {
-      ...entry,
-      worker,
-    };
-  }).filter(item => item.worker);
 
   const getWorkerStatus = (entry: TimeEntry & { worker: Worker }) => {
     if (entry.breakStart && !entry.breakEnd) return 'on-break';
