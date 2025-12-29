@@ -3,30 +3,17 @@
 import { Worker, TimeEntry } from '../types';
 import { WorkerStorage, TimeEntryStorage } from '../lib/storage';
 import { formatCurrency } from '../lib/utils';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import React from 'react';
 
 interface DashboardStatsProps {
   workers: Worker[];
   timeEntries: TimeEntry[];
 }
 
-export default function DashboardStats({ workers, timeEntries }: DashboardStatsProps) {
-  const [stats, setStats] = useState({
-    totalWorkers: 0,
-    activeWorkers: 0,
-    todayTotalHours: 0,
-    todayOvertimeHours: 0,
-    averageHoursPerWorker: 0,
-    totalPayrollToday: 0,
-    onBreakWorkers: 0,
-    departmentsActive: 0,
-  });
-
-  useEffect(() => {
-    calculateStats();
-  }, [workers, timeEntries]);
-
-  const calculateStats = () => {
+const DashboardStats = React.memo(function DashboardStats({ workers, timeEntries }: DashboardStatsProps) {
+  // Memoize stats calculation to avoid recalculation on every render
+  const stats = useMemo(() => {
     const today = new Date().toISOString().split('T')[0];
     
     // Active workers (currently working)
@@ -84,8 +71,8 @@ export default function DashboardStats({ workers, timeEntries }: DashboardStatsP
         .filter(Boolean)
     );
 
-    setStats({
-      totalWorkers: workers.length,
+    return {
+      totalWorkers: workers.filter(w => w.isActive).length,
       activeWorkers,
       todayTotalHours,
       todayOvertimeHours,
@@ -93,8 +80,8 @@ export default function DashboardStats({ workers, timeEntries }: DashboardStatsP
       totalPayrollToday,
       onBreakWorkers,
       departmentsActive: activeDepartments.size,
-    });
-  };
+    };
+  }, [workers, timeEntries]);
 
   const statItems = [
     {
@@ -184,4 +171,6 @@ export default function DashboardStats({ workers, timeEntries }: DashboardStatsP
       ))}
     </div>
   );
-}
+});
+
+export default DashboardStats;

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Worker } from '../../types';
-import { WorkerStorage } from '../../lib/storage';
+import { WorkerStorage } from '../../lib/api-storage';
 import WorkerForm from '../../components/worker-form';
 import WorkerList from '../../components/worker-list';
 
@@ -16,10 +16,10 @@ export default function WorkersPage() {
     loadWorkers();
   }, []);
 
-  const loadWorkers = () => {
+  const loadWorkers = async () => {
     setIsLoading(true);
     try {
-      const allWorkers = WorkerStorage.getAll();
+      const allWorkers = await WorkerStorage.getAll();
       setWorkers(allWorkers);
     } catch (error) {
       console.error('Error loading workers:', error);

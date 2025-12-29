@@ -1,7 +1,7 @@
 'use client';
 
 import { Worker } from '../types';
-import { WorkerStorage } from '../lib/storage';
+import { WorkerStorage } from '../lib/api-storage';
 import { validateEmail } from '../lib/utils';
 import { useState, useEffect } from 'react';
 
@@ -68,13 +68,8 @@ export default function WorkerForm({ worker, onSubmit, onCancel }: WorkerFormPro
       newErrors.hourlyRate = 'El salario por hora debe ser un número positivo';
     }
 
-    // Check if email already exists (for new workers)
-    if (!worker) {
-      const existingWorker = WorkerStorage.getAll().find(w => w.email === formData.email);
-      if (existingWorker) {
-        newErrors.email = 'Ya existe un trabajador con este email';
-      }
-    }
+    // Email uniqueness will be validated on the server
+    // We skip client-side check for async storage
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -101,10 +96,10 @@ export default function WorkerForm({ worker, onSubmit, onCancel }: WorkerFormPro
 
       if (worker) {
         // Update existing worker
-        WorkerStorage.update(worker.id, workerData);
+        await WorkerStorage.update(worker.id, workerData);
       } else {
         // Create new worker
-        WorkerStorage.create(workerData);
+        await WorkerStorage.create(workerData);
       }
 
       onSubmit();

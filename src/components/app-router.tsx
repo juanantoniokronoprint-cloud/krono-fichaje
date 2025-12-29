@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Worker, TimeEntry } from '../types';
-import { WorkerStorage, TimeEntryStorage } from '../lib/storage';
+import { WorkerStorage, TimeEntryStorage } from '../lib/api-storage';
 import { AuthService, User } from '../lib/auth';
 import WorkerPinLogin from './worker-pin-login';
 import AdminManagement from './admin-management';
@@ -38,11 +38,15 @@ export default function AppRouter() {
     return unsubscribe;
   }, []);
 
-  const loadData = () => {
-    const loadedWorkers = WorkerStorage.getAll();
-    const loadedEntries = TimeEntryStorage.getAll();
-    setWorkers(loadedWorkers);
-    setTimeEntries(loadedEntries);
+  const loadData = async () => {
+    try {
+      const loadedWorkers = await WorkerStorage.getAll();
+      const loadedEntries = await TimeEntryStorage.getAll();
+      setWorkers(loadedWorkers);
+      setTimeEntries(loadedEntries);
+    } catch (error) {
+      console.error('Error loading data:', error);
+    }
   };
 
   const handleLogin = (user: User) => {

@@ -2,8 +2,11 @@
 
 import React, { useState, useEffect } from 'react';
 import { Worker, TimeEntry } from '../types';
-import { WorkerStorage, TimeEntryStorage, LocationService } from '../lib/storage';
+import { WorkerStorage, TimeEntryStorage, LocationService } from '../lib/api-storage';
 import { TimeCalculator } from '../lib/time-calculations';
+import { ErrorHandler, ErrorType, ErrorSeverity, BusinessLogicError } from '../lib/error-handler';
+import { useNotificationContext } from './notification-provider';
+import { InlineSpinner } from './loading-spinner';
 
 interface WorkerClockProps {
   onTimeEntry?: (entry: TimeEntry) => void;
@@ -15,11 +18,16 @@ export default function WorkerClock({ onTimeEntry }: WorkerClockProps) {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState('');
+  const [hasActiveEntry, setHasActiveEntry] = useState(false);
+  const notifications = useNotificationContext();
 
   useEffect(() => {
     // Load active workers
-    const activeWorkers = WorkerStorage.getActive();
-    setWorkers(activeWorkers);
+    const loadWorkers = async () => {
+      const activeWorkers = await WorkerStorage.getActive();
+      setWorkers(activeWorkers);
+    };
+    loadWorkers();
 
     // Update current time every second
     const timer = setInterval(() => {
@@ -29,13 +37,29 @@ export default function WorkerClock({ onTimeEntry }: WorkerClockProps) {
     return () => clearInterval(timer);
   }, []);
 
+  useEffect(() => {
+    const checkActiveEntry = async () => {
+      if (selectedWorkerId) {
+        const activeEntries = await TimeEntryStorage.getActiveEntries();
+        setHasActiveEntry(activeEntries.some(entry => entry.workerId === selectedWorkerId && !entry.clockOut));
+      } else {
+        setHasActiveEntry(false);
+      }
+    };
+    checkActiveEntry();
+  }, [selectedWorkerId]);
+
   const selectedWorker = workers.find(w => w.id === selectedWorkerId);
-  const hasActiveEntry = selectedWorkerId && TimeEntryStorage.getActiveEntries()
-    .some(entry => entry.workerId === selectedWorkerId && !entry.clockOut);
 
   const handleClockAction = async () => {
     if (!selectedWorkerId) {
-      setMessage('Por favor selecciona tu nombre');
+      notifications.showWarning('Por favor selecciona tu nombre');
+      return;
+    }
+
+    const worker = selectedWorker;
+    if (!worker || !worker.isActive) {
+      notifications.showError('Este trabajador está inactivo. Contacta al administrador.');
       return;
     }
 
@@ -43,50 +67,77 @@ export default function WorkerClock({ onTimeEntry }: WorkerClockProps) {
     setMessage('');
 
     try {
+      // Check for double clock-in/out
+      const currentActiveEntries = await TimeEntryStorage.getActiveEntries();
+      const existingEntry = currentActiveEntries.find(
+        entry => entry.workerId === selectedWorkerId && !entry.clockOut
+      );
+
+      if (hasActiveEntry && !existingEntry) {
+        throw new BusinessLogicError(
+          'Active entry state mismatch',
+          'El estado de la entrada activa no coincide. Por favor, recarga la página.',
+          'STATE_MISMATCH'
+        );
+      }
+
       const location = await LocationService.getCurrentLocation();
       
-      if (hasActiveEntry) {
+      if (hasActiveEntry && existingEntry) {
         // Clock out
-        const activeEntry = TimeEntryStorage.getActiveEntries()
-          .find(entry => entry.workerId === selectedWorkerId && !entry.clockOut);
+        const clockOut = new Date().toISOString();
         
-        if (activeEntry) {
-          const clockOut = new Date().toISOString();
-          
-          // Update the entry with clock out time
-          TimeEntryStorage.update(activeEntry.id, {
-            clockOut,
-            location
-          });
+        // Update the entry with clock out time
+        const updatedEntry = await TimeEntryStorage.update(existingEntry.id, {
+          clockOut,
+          location
+        });
 
-          // Calculate hours using the new time calculator
-          const updatedEntry = TimeEntryStorage.getAll().find(e => e.id === activeEntry.id);
-          if (updatedEntry) {
-            const worker = workers.find(w => w.id === selectedWorkerId);
-            const calculation = TimeCalculator.calculateEntryHours(updatedEntry);
-            
-            setMessage(`¡Hasta luego ${selectedWorker?.name}! Has trabajado ${calculation.netHours.toFixed(1)} horas netas.`);
-          }
+        // Calculate hours using the new time calculator
+        if (updatedEntry) {
+          const calculation = TimeCalculator.calculateEntryHours(updatedEntry);
+          const successMessage = `¡Hasta luego ${worker.name}! Has trabajado ${calculation.netHours.toFixed(1)} horas netas.`;
+          setMessage(successMessage);
+          notifications.showSuccess(successMessage);
+          onTimeEntry?.(updatedEntry);
         }
       } else {
-        // Clock in
-        const newEntry = TimeEntryStorage.create({
+        // Clock in - prevent double clock-in
+        if (existingEntry) {
+          throw new BusinessLogicError(
+            'Worker already has an active entry',
+            'Ya tienes una entrada activa. Por favor, registra la salida primero.',
+            'DUPLICATE_CLOCK_IN'
+          );
+        }
+
+        const newEntry = await TimeEntryStorage.create({
           workerId: selectedWorkerId,
           clockIn: new Date().toISOString(),
           location,
           approvalStatus: 'auto-approved'
         });
 
+        const successMessage = `¡Bienvenido ${worker.name}! Has fichado correctamente.`;
+        setMessage(successMessage);
+        notifications.showSuccess(successMessage);
         onTimeEntry?.(newEntry);
-        setMessage(`¡Bienvenido ${selectedWorker?.name}! Has fichado correctamente.`);
       }
 
       // Refresh workers list to update active status
-      setWorkers(WorkerStorage.getActive());
+      const activeWorkers = await WorkerStorage.getActive();
+      setWorkers(activeWorkers);
       
     } catch (error) {
-      setMessage('Error al obtener la ubicación. Asegúrate de permitir el acceso a la ubicación.');
-      console.error('Location error:', error);
+      const appError = ErrorHandler.handleError(
+        error,
+        ErrorType.BUSINESS_LOGIC,
+        ErrorSeverity.MEDIUM,
+        { operation: 'clockAction', workerId: selectedWorkerId }
+      );
+      
+      setMessage(appError.userMessage);
+      notifications.showError(appError.userMessage);
     } finally {
       setIsLoading(false);
     }
@@ -163,7 +214,7 @@ export default function WorkerClock({ onTimeEntry }: WorkerClockProps) {
         >
           {isLoading ? (
             <div className="flex items-center justify-center">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white mr-2"></div>
+              <InlineSpinner size="md" className="border-white mr-2" />
               Procesando...
             </div>
           ) : hasActiveEntry ? (

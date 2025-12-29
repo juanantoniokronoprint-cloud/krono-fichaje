@@ -4,6 +4,10 @@ import { useState, useEffect } from 'react';
 import { Worker, TimeEntry, Location } from '../types';
 import { WorkerStorage, TimeEntryStorage, LocationService, calculateTotalHours, calculateOvertime } from '../lib/storage';
 import { formatTime, formatDuration } from '../lib/storage';
+import { ErrorHandler, ErrorType, ErrorSeverity, BusinessLogicError } from '../lib/error-handler';
+import { useNotificationContext } from './notification-provider';
+import LoadingSpinner from './loading-spinner';
+import ConfirmationDialog from './confirmation-dialog';
 
 interface TimeTrackerProps {
   worker: Worker;
@@ -17,6 +21,8 @@ export default function TimeTracker({ worker, onUpdate }: TimeTrackerProps) {
   const [locationError, setLocationError] = useState<string | null>(null);
   const [elapsedTime, setElapsedTime] = useState<string>('00:00:00');
   const [isOnBreak, setIsOnBreak] = useState(false);
+  const [showClockOutConfirm, setShowClockOutConfirm] = useState(false);
+  const notifications = useNotificationContext();
 
   useEffect(() => {
     // Load active entry for this worker
@@ -64,7 +70,7 @@ export default function TimeTracker({ worker, onUpdate }: TimeTrackerProps) {
 
   const handleClockIn = async () => {
     if (!worker.isActive) {
-      alert('Este trabajador está inactivo. Contacta al administrador.');
+      notifications.showError('Este trabajador está inactivo. Contacta al administrador.');
       return;
     }
 
@@ -72,35 +78,47 @@ export default function TimeTracker({ worker, onUpdate }: TimeTrackerProps) {
     setLocationError(null);
 
     try {
-      // Get current location
-      const currentLocation = await LocationService.getCurrentLocation();
-      setLocation(currentLocation);
-
-      // Check if worker already has an active entry
+      // Check if worker already has an active entry (prevent double clock-in)
       const existingActiveEntry = TimeEntryStorage.getAll().find(
         entry => entry.workerId === worker.id && !entry.clockOut
       );
 
       if (existingActiveEntry) {
-        alert('Este trabajador ya tiene una entrada activa.');
-        return;
+        throw new BusinessLogicError(
+          'Worker already has an active entry',
+          'Este trabajador ya tiene una entrada activa. Por favor, registra la salida primero.',
+          'DUPLICATE_CLOCK_IN'
+        );
       }
+
+      // Get current location
+      const currentLocation = await LocationService.getCurrentLocation();
+      setLocation(currentLocation);
 
       // Create new time entry
       const newEntry: Omit<TimeEntry, 'id'> = {
         workerId: worker.id,
         clockIn: new Date().toISOString(),
         location: currentLocation,
+        approvalStatus: 'auto-approved',
       };
 
       const createdEntry = TimeEntryStorage.create(newEntry);
       setActiveEntry(createdEntry);
       updateElapsedTime(createdEntry.clockIn);
       onUpdate();
-
+      
+      notifications.showSuccess('Entrada registrada correctamente');
     } catch (error) {
-      console.error('Error clocking in:', error);
-      setLocationError(error instanceof Error ? error.message : 'Error al obtener la ubicación');
+      const appError = ErrorHandler.handleError(
+        error,
+        ErrorType.BUSINESS_LOGIC,
+        ErrorSeverity.MEDIUM,
+        { operation: 'clockIn', workerId: worker.id }
+      );
+      
+      setLocationError(appError.userMessage);
+      notifications.showError(appError.userMessage);
     } finally {
       setIsLoading(false);
     }
@@ -109,7 +127,16 @@ export default function TimeTracker({ worker, onUpdate }: TimeTrackerProps) {
   const handleClockOut = async () => {
     if (!activeEntry) return;
 
+    // Show confirmation with hours summary
+    setShowClockOutConfirm(true);
+  };
+
+  const confirmClockOut = async () => {
+    if (!activeEntry) return;
+
+    setShowClockOutConfirm(false);
     setIsLoading(true);
+
     try {
       const clockOutTime = new Date().toISOString();
       const breakMinutes = calculateBreakMinutes(activeEntry);
@@ -133,9 +160,18 @@ export default function TimeTracker({ worker, onUpdate }: TimeTrackerProps) {
       setElapsedTime('00:00:00');
       onUpdate();
 
+      notifications.showSuccess(
+        `Salida registrada. Has trabajado ${totalHours.toFixed(1)} horas${overtimeHours > 0 ? ` (${overtimeHours.toFixed(1)} horas extra)` : ''}.`
+      );
     } catch (error) {
-      console.error('Error clocking out:', error);
-      alert('Error al registrar la salida');
+      const appError = ErrorHandler.handleError(
+        error,
+        ErrorType.STORAGE,
+        ErrorSeverity.HIGH,
+        { operation: 'clockOut', entryId: activeEntry.id }
+      );
+      
+      notifications.showError(appError.userMessage);
     } finally {
       setIsLoading(false);
     }
@@ -150,9 +186,15 @@ export default function TimeTracker({ worker, onUpdate }: TimeTrackerProps) {
       TimeEntryStorage.update(activeEntry.id, { breakStart: breakStartTime });
       setIsOnBreak(true);
       onUpdate();
+      notifications.showInfo('Descanso iniciado');
     } catch (error) {
-      console.error('Error starting break:', error);
-      alert('Error al iniciar el descanso');
+      const appError = ErrorHandler.handleError(
+        error,
+        ErrorType.STORAGE,
+        ErrorSeverity.MEDIUM,
+        { operation: 'startBreak', entryId: activeEntry.id }
+      );
+      notifications.showError(appError.userMessage);
     } finally {
       setIsLoading(false);
     }
@@ -167,9 +209,15 @@ export default function TimeTracker({ worker, onUpdate }: TimeTrackerProps) {
       TimeEntryStorage.update(activeEntry.id, { breakEnd: breakEndTime });
       setIsOnBreak(false);
       onUpdate();
+      notifications.showInfo('Descanso finalizado');
     } catch (error) {
-      console.error('Error ending break:', error);
-      alert('Error al finalizar el descanso');
+      const appError = ErrorHandler.handleError(
+        error,
+        ErrorType.STORAGE,
+        ErrorSeverity.MEDIUM,
+        { operation: 'endBreak', entryId: activeEntry.id }
+      );
+      notifications.showError(appError.userMessage);
     } finally {
       setIsLoading(false);
     }
@@ -203,8 +251,19 @@ export default function TimeTracker({ worker, onUpdate }: TimeTrackerProps) {
     const overtimeHours = getOvertimeHours();
 
     return (
-      <div className="bg-white rounded-lg shadow-lg p-6 border border-gray-200">
-        <div className="text-center mb-6">
+      <>
+        <ConfirmationDialog
+          isOpen={showClockOutConfirm}
+          title="Confirmar Salida"
+          message={`¿Estás seguro de que deseas registrar la salida? Has trabajado ${totalHours.toFixed(1)} horas${overtimeHours > 0 ? ` (${overtimeHours.toFixed(1)} horas extra)` : ''}.`}
+          confirmLabel="Sí, Registrar Salida"
+          cancelLabel="Cancelar"
+          variant="info"
+          onConfirm={confirmClockOut}
+          onCancel={() => setShowClockOutConfirm(false)}
+        />
+        <div className="bg-white rounded-lg shadow-lg p-6 border border-gray-200">
+          <div className="text-center mb-6">
           <h3 className="text-2xl font-bold text-gray-900 mb-2">Trabajando</h3>
           <div className="text-4xl font-mono font-bold text-blue-600 mb-2">
             {elapsedTime}
@@ -268,7 +327,8 @@ export default function TimeTracker({ worker, onUpdate }: TimeTrackerProps) {
         >
           {isLoading ? 'Registrando salida...' : 'Registrar Salida'}
         </button>
-      </div>
+        </div>
+      </>
     );
   }
 
