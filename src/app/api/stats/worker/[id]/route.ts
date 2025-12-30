@@ -11,9 +11,10 @@ import { WorkerStats } from '@/types';
 // GET /api/stats/worker/[id] - Get statistics for a specific worker
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const params = await context.params;
     const { id } = params;
 
     // Verify worker exists
@@ -89,6 +90,7 @@ export async function GET(
 
     return NextResponse.json(stats);
   } catch (error) {
+    const params = await context.params;
     const appError = ErrorHandler.handleError(
       error,
       ErrorType.UNKNOWN,

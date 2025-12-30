@@ -56,9 +56,10 @@ function mapWorkerToRow(worker: Partial<Worker>): any {
 // GET /api/workers/[id] - Get worker by ID
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const params = await context.params;
     const { id } = params;
 
     const row = await queryOne('SELECT * FROM workers WHERE id = ?', [id]);
@@ -89,9 +90,10 @@ export async function GET(
 // PUT /api/workers/[id] - Update worker
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const params = await context.params;
     const { id } = params;
     const body = await request.json();
 
@@ -188,9 +190,10 @@ export async function PUT(
 // DELETE /api/workers/[id] - Delete worker
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const params = await context.params;
     const { id } = params;
 
     const affectedRows = await execute('DELETE FROM workers WHERE id = ?', [id]);

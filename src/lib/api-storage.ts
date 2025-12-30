@@ -442,6 +442,45 @@ export class StatsStorage {
   }
 }
 
+// Settings storage operations
+export class SettingsStorage {
+  static async getAll(): Promise<Record<string, string>> {
+    try {
+      return await apiCall<Record<string, string>>('/settings');
+    } catch (error) {
+      console.error('Error loading settings:', error);
+      return { admin_pin: '123456' }; // Return default
+    }
+  }
+
+  static async get(key: string): Promise<string | null> {
+    try {
+      const data = await apiCall<Record<string, string | null>>(`/settings?key=${key}`);
+      return data[key] || null;
+    } catch (error) {
+      console.error(`Error loading setting ${key}:`, error);
+      return key === 'admin_pin' ? '123456' : null;
+    }
+  }
+
+  static async update(settings: Record<string, string>): Promise<void> {
+    try {
+      await apiCall('/settings', {
+        method: 'PUT',
+        body: JSON.stringify(settings),
+      });
+    } catch (error) {
+      ErrorHandler.handleError(
+        error,
+        ErrorType.STORAGE,
+        ErrorSeverity.MEDIUM,
+        { operation: 'updateSettings' }
+      );
+      throw error;
+    }
+  }
+}
+
 // Re-export utility functions from storage.ts for compatibility
 export {
   LocationService,

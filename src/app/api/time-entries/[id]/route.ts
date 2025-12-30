@@ -78,9 +78,10 @@ function mapTimeEntryToRow(entry: Partial<TimeEntry>): any {
 // GET /api/time-entries/[id] - Get time entry by ID
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const params = await context.params;
     const { id } = params;
 
     const row = await queryOne('SELECT * FROM time_entries WHERE id = ?', [id]);
@@ -111,9 +112,10 @@ export async function GET(
 // PUT /api/time-entries/[id] - Update time entry
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const params = await context.params;
     const { id } = params;
     const body = await request.json();
 
@@ -223,9 +225,10 @@ export async function PUT(
 // DELETE /api/time-entries/[id] - Delete time entry
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const params = await context.params;
     const { id } = params;
 
     const affectedRows = await execute('DELETE FROM time_entries WHERE id = ?', [id]);

@@ -2,13 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import { Worker, TimeEntry, FilterOptions } from '../../types';
-import { WorkerStorage, TimeEntryStorage } from '../../lib/storage';
+import { WorkerStorage, TimeEntryStorage } from '../../lib/api-storage';
 import ReportFilters from '../../components/report-filters';
 import ExportButtons from '../../components/export-buttons';
 import ReportsTable from '../../components/reports-table';
 import Link from 'next/link';
+import PinAuthGuard from '../../components/pin-auth-guard';
 
-export default function ReportsPage() {
+function ReportsPageContent() {
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([]);
   const [filters, setFilters] = useState<FilterOptions>({
@@ -26,11 +27,11 @@ export default function ReportsPage() {
     loadData();
   }, []);
 
-  const loadData = () => {
+  const loadData = async () => {
     setIsLoading(true);
     try {
-      const allWorkers = WorkerStorage.getAll();
-      const allTimeEntries = TimeEntryStorage.getAll();
+      const allWorkers = await WorkerStorage.getAll();
+      const allTimeEntries = await TimeEntryStorage.getAll();
       setWorkers(allWorkers);
       setTimeEntries(allTimeEntries);
     } catch (error) {
@@ -228,5 +229,13 @@ export default function ReportsPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function ReportsPage() {
+  return (
+    <PinAuthGuard adminOnly={true}>
+      <ReportsPageContent />
+    </PinAuthGuard>
   );
 }

@@ -5,8 +5,9 @@ import { Worker } from '../../types';
 import { WorkerStorage } from '../../lib/api-storage';
 import WorkerForm from '../../components/worker-form';
 import WorkerList from '../../components/worker-list';
+import PinAuthGuard from '../../components/pin-auth-guard';
 
-export default function WorkersPage() {
+function WorkersPageContent() {
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editingWorker, setEditingWorker] = useState<Worker | undefined>(undefined);
@@ -190,5 +191,13 @@ export default function WorkersPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function WorkersPage() {
+  return (
+    <PinAuthGuard adminOnly={true}>
+      <WorkersPageContent />
+    </PinAuthGuard>
   );
 }

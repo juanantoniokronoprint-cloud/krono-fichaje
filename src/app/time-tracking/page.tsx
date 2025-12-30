@@ -2,10 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { Worker } from '../../types';
-import { WorkerStorage, TimeEntryStorage } from '../../lib/storage';
+import { WorkerStorage, TimeEntryStorage } from '../../lib/api-storage';
 import TimeTracker from '../../components/time-tracker';
+import PinAuthGuard from '../../components/pin-auth-guard';
 
-export default function TimeTrackingPage() {
+function TimeTrackingPageContent() {
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [selectedWorker, setSelectedWorker] = useState<Worker | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -14,10 +15,10 @@ export default function TimeTrackingPage() {
     loadWorkers();
   }, []);
 
-  const loadWorkers = () => {
+  const loadWorkers = async () => {
     setIsLoading(true);
     try {
-      const allWorkers = WorkerStorage.getAll();
+      const allWorkers = await WorkerStorage.getAll();
       setWorkers(allWorkers);
     } catch (error) {
       console.error('Error loading workers:', error);
@@ -30,14 +31,31 @@ export default function TimeTrackingPage() {
     setSelectedWorker(worker);
   };
 
-  const handleTimeUpdate = () => {
+  const handleTimeUpdate = async () => {
     // Refresh data when time is updated
-    loadWorkers();
+    await loadWorkers();
   };
 
-  const activeWorkers = TimeEntryStorage.getActiveEntries();
+  const [activeEntries, setActiveEntries] = useState<any[]>([]);
+
+  useEffect(() => {
+    const loadActiveEntries = async () => {
+      try {
+        const entries = await TimeEntryStorage.getActiveEntries();
+        setActiveEntries(entries);
+      } catch (error) {
+        console.error('Error loading active entries:', error);
+        setActiveEntries([]);
+      }
+    };
+    if (workers.length > 0) {
+      loadActiveEntries();
+      const interval = setInterval(loadActiveEntries, 5000); // Actualizar cada 5 segundos
+      return () => clearInterval(interval);
+    }
+  }, [workers.length]);
   const workerStatuses = workers.map(worker => {
-    const activeEntry = activeWorkers.find(entry => entry.workerId === worker.id);
+    const activeEntry = activeEntries.find((entry: any) => entry && entry.workerId === worker.id);
     return {
       ...worker,
       isActive: !!activeEntry,
@@ -77,7 +95,7 @@ export default function TimeTrackingPage() {
               Estado Actual
             </h3>
             
-            {activeWorkers.length === 0 ? (
+            {activeEntries.length === 0 ? (
               <div className="text-center py-4">
                 <p className="text-gray-500">No hay trabajadores activos en este momento</p>
               </div>
@@ -121,7 +139,7 @@ export default function TimeTrackingPage() {
               
               <div className="space-y-3">
                 {workers.map(worker => {
-                  const activeEntry = activeWorkers.find(entry => entry.workerId === worker.id);
+                  const activeEntry = activeEntries.find((entry: any) => entry.workerId === worker.id);
                   const isOnBreak = activeEntry?.breakStart && !activeEntry?.breakEnd;
                   
                   return (
@@ -240,5 +258,13 @@ export default function TimeTrackingPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function TimeTrackingPage() {
+  return (
+    <PinAuthGuard>
+      <TimeTrackingPageContent />
+    </PinAuthGuard>
   );
 }
