@@ -158,10 +158,8 @@ export function validateTimeEntry(entry: Partial<TimeEntry>): ValidationResult {
     }
   }
 
-  // Location validation
-  if (!entry.location) {
-    errors.push('La ubicación es obligatoria');
-  } else {
+  // Location validation (optional)
+  if (entry.location) {
     if (typeof entry.location.latitude !== 'number' || isNaN(entry.location.latitude)) {
       errors.push('La latitud de la ubicación no es válida');
     } else if (entry.location.latitude < -90 || entry.location.latitude > 90) {

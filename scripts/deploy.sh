@@ -22,7 +22,7 @@ fi
 
 # Instalar dependencias
 echo -e "${YELLOW}Instalando dependencias...${NC}"
-npm install --production
+npm install
 
 # Build de producción
 echo -e "${YELLOW}Construyendo aplicación para producción...${NC}"

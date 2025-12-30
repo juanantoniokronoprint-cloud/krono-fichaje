@@ -1,7 +1,7 @@
 'use client';
 
 import { Worker, TimeEntry } from '../types';
-import { formatTime, formatDateTime } from '../lib/storage';
+import { formatTime, formatDateTime } from '../lib/utils';
 import { getInitials, getRandomColor, isToday, isThisWeek } from '../lib/utils';
 
 interface RecentEntriesProps {

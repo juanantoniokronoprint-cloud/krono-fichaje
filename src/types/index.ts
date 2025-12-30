@@ -32,7 +32,7 @@ export interface TimeEntry {
   clockOut?: string;
   breakStart?: string;
   breakEnd?: string;
-  location: Location;
+  location?: Location;
   ipAddress?: string;
   deviceId?: string;
   totalHours?: number;

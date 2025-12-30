@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Worker, TimeEntry, Location } from '../types';
-import { WorkerStorage, TimeEntryStorage, calculateTotalHours, calculateOvertime } from '../lib/storage';
-import { formatTime, formatDuration } from '../lib/storage';
+import { Worker, TimeEntry } from '../types';
+import { TimeEntryStorage, calculateTotalHours, calculateOvertime } from '../lib/api-storage';
+import { formatTime } from '../lib/utils';
 import { ErrorHandler, ErrorType, ErrorSeverity, BusinessLogicError } from '../lib/error-handler';
 import { useNotificationContext } from './notification-provider';
 import LoadingSpinner from './loading-spinner';
@@ -17,8 +17,6 @@ interface TimeTrackerProps {
 export default function TimeTracker({ worker, onUpdate }: TimeTrackerProps) {
   const [activeEntry, setActiveEntry] = useState<TimeEntry | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [location, setLocation] = useState<Location | null>(null);
-  const [locationError, setLocationError] = useState<string | null>(null);
   const [elapsedTime, setElapsedTime] = useState<string>('00:00:00');
   const [isOnBreak, setIsOnBreak] = useState(false);
   const [showClockOutConfirm, setShowClockOutConfirm] = useState(false);
@@ -82,7 +80,6 @@ export default function TimeTracker({ worker, onUpdate }: TimeTrackerProps) {
     }
 
     setIsLoading(true);
-    setLocationError(null);
 
     try {
       // Check if worker already has an active entry (prevent double clock-in)
@@ -103,7 +100,6 @@ export default function TimeTracker({ worker, onUpdate }: TimeTrackerProps) {
       const newEntry: Omit<TimeEntry, 'id'> = {
         workerId: worker.id,
         clockIn: new Date().toISOString(),
-        location: { latitude: 0, longitude: 0, address: '' },
         approvalStatus: 'auto-approved',
       };
 
@@ -121,7 +117,6 @@ export default function TimeTracker({ worker, onUpdate }: TimeTrackerProps) {
         { operation: 'clockIn', workerId: worker.id }
       );
       
-      setLocationError(appError.userMessage);
       notifications.showError(appError.userMessage);
     } finally {
       setIsLoading(false);
@@ -293,18 +288,6 @@ export default function TimeTracker({ worker, onUpdate }: TimeTrackerProps) {
           </div>
         </div>
 
-        {/* Location Info */}
-        {location && (
-          <div className="mb-6 p-3 bg-gray-50 rounded-lg">
-            <div className="flex items-center text-sm text-gray-600">
-              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-              {location.address}
-            </div>
-          </div>
-        )}
 
         {/* Break Controls */}
         <div className="mb-6">
@@ -347,20 +330,13 @@ export default function TimeTracker({ worker, onUpdate }: TimeTrackerProps) {
         <p className="text-gray-600">Haz clic para registrar tu entrada</p>
       </div>
 
-      {/* Location Error */}
-      {locationError && (
-        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-          <p className="text-red-600 text-sm">{locationError}</p>
-        </div>
-      )}
-
       {/* Clock In Button */}
       <button
         onClick={handleClockIn}
         disabled={isLoading || !worker.isActive}
         className="w-full bg-green-600 text-white py-4 px-4 rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed font-bold text-lg"
       >
-        {isLoading ? 'Obteniendo ubicación...' : 
+        {isLoading ? 'Registrando entrada...' : 
          !worker.isActive ? 'Trabajador Inactivo' : 
          'Registrar Entrada'}
       </button>

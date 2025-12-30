@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Worker, TimeEntry } from '../types';
-import { WorkerStorage, TimeEntryStorage } from '../lib/storage';
+import { WorkerStorage, TimeEntryStorage } from '../lib/api-storage';
 import { TimeCalculator } from '../lib/time-calculations';
 
 interface WorkerPinLoginProps {
@@ -86,28 +86,27 @@ export default function WorkerPinLogin({ onClockIn, onClockOut }: WorkerPinLogin
     setMessage('');
 
     try {
-      const location = { latitude: 0, longitude: 0, address: '' };
       const workerId = authenticatedWorker.id;
 
-      const hasActiveEntry = TimeEntryStorage.getActiveEntries()
-        .some(entry => entry.workerId === workerId && !entry.clockOut);
+      const activeEntries = await TimeEntryStorage.getActiveEntries();
+      const hasActiveEntry = activeEntries.some(entry => entry.workerId === workerId && !entry.clockOut);
 
       if (hasActiveEntry) {
         // Clock out
-        const activeEntry = TimeEntryStorage.getActiveEntries()
-          .find(entry => entry.workerId === workerId && !entry.clockOut);
+        const activeEntries = await TimeEntryStorage.getActiveEntries();
+        const activeEntry = activeEntries.find(entry => entry.workerId === workerId && !entry.clockOut);
         
         if (activeEntry) {
           const clockOut = new Date().toISOString();
           
           // Update the entry with clock out time
-          TimeEntryStorage.update(activeEntry.id, {
-            clockOut,
-            location
+          await TimeEntryStorage.update(activeEntry.id, {
+            clockOut
           });
 
           // Calculate hours using the new time calculator
-          const updatedEntry = TimeEntryStorage.getAll().find(e => e.id === activeEntry.id);
+          const allEntries = await TimeEntryStorage.getAll();
+          const updatedEntry = allEntries.find(e => e.id === activeEntry.id);
           if (updatedEntry) {
             const calculation = TimeCalculator.calculateEntryHours(updatedEntry);
             
@@ -117,10 +116,9 @@ export default function WorkerPinLogin({ onClockIn, onClockOut }: WorkerPinLogin
         }
       } else {
         // Clock in
-        const newEntry = TimeEntryStorage.create({
+        const newEntry = await TimeEntryStorage.create({
           workerId,
           clockIn: new Date().toISOString(),
-          location,
           approvalStatus: 'auto-approved'
         });
 
@@ -129,11 +127,12 @@ export default function WorkerPinLogin({ onClockIn, onClockOut }: WorkerPinLogin
       }
 
       // Refresh workers list to update active status
-      setWorkers(WorkerStorage.getActive());
+      const allWorkers = await WorkerStorage.getAll();
+      setWorkers(allWorkers.filter(w => w.isActive));
       
     } catch (error) {
-      setMessage('Error al obtener la ubicación. Asegúrate de permitir el acceso a la ubicación.');
-      console.error('Location error:', error);
+      setMessage('Error al registrar el fichaje. Por favor, intenta de nuevo.');
+      console.error('Clock error:', error);
     } finally {
       setIsLoading(false);
     }
@@ -305,9 +304,20 @@ export default function WorkerPinLogin({ onClockIn, onClockOut }: WorkerPinLogin
     );
   }
 
-  // Worker Dashboard (after PIN authentication)
-  const hasActiveEntry = TimeEntryStorage.getActiveEntries()
-    .some(entry => entry.workerId === authenticatedWorker.id && !entry.clockOut);
+  // Worker Dashboard (after PIN authentication) - We'll load this in useEffect
+  const [hasActiveEntry, setHasActiveEntry] = useState(false);
+
+  useEffect(() => {
+    const checkActiveEntry = async () => {
+      if (authenticatedWorker) {
+        const activeEntries = await TimeEntryStorage.getActiveEntries();
+        setHasActiveEntry(activeEntries.some(entry => entry.workerId === authenticatedWorker.id && !entry.clockOut));
+      }
+    };
+    checkActiveEntry();
+    const interval = setInterval(checkActiveEntry, 5000); // Check every 5 seconds
+    return () => clearInterval(interval);
+  }, [authenticatedWorker]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">

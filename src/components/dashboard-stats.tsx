@@ -1,7 +1,7 @@
 'use client';
 
 import { Worker, TimeEntry } from '../types';
-import { WorkerStorage, TimeEntryStorage } from '../lib/storage';
+import { WorkerStorage, TimeEntryStorage } from '../lib/api-storage';
 import { formatCurrency } from '../lib/utils';
 import { useState, useEffect, useMemo } from 'react';
 import React from 'react';

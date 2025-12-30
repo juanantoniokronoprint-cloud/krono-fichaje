@@ -81,16 +81,13 @@ export default function WorkerClock({ onTimeEntry }: WorkerClockProps) {
         );
       }
 
-      const location = { latitude: 0, longitude: 0, address: '' };
-      
       if (hasActiveEntry && existingEntry) {
         // Clock out
         const clockOut = new Date().toISOString();
         
         // Update the entry with clock out time
         const updatedEntry = await TimeEntryStorage.update(existingEntry.id, {
-          clockOut,
-          location
+          clockOut
         });
 
         // Calculate hours using the new time calculator
@@ -114,7 +111,6 @@ export default function WorkerClock({ onTimeEntry }: WorkerClockProps) {
         const newEntry = await TimeEntryStorage.create({
           workerId: selectedWorkerId,
           clockIn: new Date().toISOString(),
-          location,
           approvalStatus: 'auto-approved'
         });
 

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { WorkerStorage, TimeEntryStorage } from '../lib/storage';
+import { WorkerStorage, TimeEntryStorage } from '../lib/api-storage';
 
 export default function Navigation() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -13,13 +13,20 @@ export default function Navigation() {
 
   // Get counts for navigation badges (client-side only)
   useEffect(() => {
-    try {
-      setActiveWorkers(TimeEntryStorage.getActiveEntries().length);
-      setTotalWorkers(WorkerStorage.getAll().filter(w => w.isActive).length);
-    } catch (error) {
-      // Ignore errors in SSR
-      console.error('Error loading navigation data:', error);
-    }
+    const loadNavData = async () => {
+      try {
+        const [activeEntries, allWorkers] = await Promise.all([
+          TimeEntryStorage.getActiveEntries(),
+          WorkerStorage.getAll()
+        ]);
+        setActiveWorkers(activeEntries.length);
+        setTotalWorkers(allWorkers.filter(w => w.isActive).length);
+      } catch (error) {
+        // Ignore errors in SSR
+        console.error('Error loading navigation data:', error);
+      }
+    };
+    loadNavData();
   }, []);
 
   const navigation = [

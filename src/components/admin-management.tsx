@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Worker, TimeEntry } from '../types';
-import { WorkerStorage, TimeEntryStorage } from '../lib/storage';
+import { WorkerStorage, TimeEntryStorage } from '../lib/api-storage';
 
 // Helper function to ensure skills array exists
 const ensureSkills = (skills?: string[]): string[] => {
@@ -55,14 +55,20 @@ export default function AdminManagement({ workers, timeEntries, onWorkersChange 
 
   const [message, setMessage] = useState('');
 
-  const handleWorkerSubmit = (e: React.FormEvent) => {
+  const handleWorkerSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isEditing && selectedWorker) {
-      WorkerStorage.update(selectedWorker.id, newWorker);
-      setMessage('Trabajador actualizado exitosamente');
-    } else {
-      WorkerStorage.create({ ...newWorker, isActive: true });
-      setMessage('Trabajador creado exitosamente');
+    try {
+      if (isEditing && selectedWorker) {
+        await WorkerStorage.update(selectedWorker.id, newWorker);
+        setMessage('Trabajador actualizado exitosamente');
+      } else {
+        await WorkerStorage.create({ ...newWorker, isActive: true });
+        setMessage('Trabajador creado exitosamente');
+      }
+    } catch (error) {
+      console.error('Error saving worker:', error);
+      setMessage('Error al guardar el trabajador');
+      return;
     }
     setNewWorker({
       employeeNumber: '',
@@ -104,20 +110,30 @@ export default function AdminManagement({ workers, timeEntries, onWorkersChange 
     setIsEditing(true);
   };
 
-  const handleDeleteWorker = (workerId: string) => {
+  const handleDeleteWorker = async (workerId: string) => {
     if (confirm('¿Estás seguro de que deseas eliminar este trabajador?')) {
-      WorkerStorage.delete(workerId);
-      setMessage('Trabajador eliminado exitosamente');
-      onWorkersChange?.();
+      try {
+        await WorkerStorage.delete(workerId);
+        setMessage('Trabajador eliminado exitosamente');
+        onWorkersChange?.();
+      } catch (error) {
+        console.error('Error deleting worker:', error);
+        setMessage('Error al eliminar el trabajador');
+      }
     }
   };
 
-  const handleToggleWorkerStatus = (workerId: string) => {
+  const handleToggleWorkerStatus = async (workerId: string) => {
     const worker = workers.find(w => w.id === workerId);
     if (worker) {
-      WorkerStorage.update(workerId, { isActive: !worker.isActive });
-      setMessage(`Trabajador ${worker.isActive ? 'desactivado' : 'activado'} exitosamente`);
-      onWorkersChange?.();
+      try {
+        await WorkerStorage.update(workerId, { isActive: !worker.isActive });
+        setMessage(`Trabajador ${worker.isActive ? 'desactivado' : 'activado'} exitosamente`);
+        onWorkersChange?.();
+      } catch (error) {
+        console.error('Error toggling worker status:', error);
+        setMessage('Error al cambiar el estado del trabajador');
+      }
     }
   };
 

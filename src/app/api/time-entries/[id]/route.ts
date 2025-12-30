@@ -20,11 +20,7 @@ function mapRowToTimeEntry(row: any): TimeEntry {
     clockOut: row.clock_out ? new Date(row.clock_out).toISOString() : undefined,
     breakStart: row.break_start ? new Date(row.break_start).toISOString() : undefined,
     breakEnd: row.break_end ? new Date(row.break_end).toISOString() : undefined,
-    location: {
-      latitude: 0,
-      longitude: 0,
-      address: '',
-    },
+    location: undefined,
     ipAddress: row.ip_address || undefined,
     deviceId: row.device_id || undefined,
     totalHours: row.total_hours ? parseFloat(row.total_hours) : undefined,
@@ -135,8 +131,8 @@ export async function PUT(
       id, // Ensure ID doesn't change
     };
 
-    // Validate updated entry
-    const validation = validateTimeEntry(updatedEntry, true);
+    // Validate updated entry (only validate provided fields, not the full entry)
+    const validation = validateTimeEntry(updatedEntry);
     if (!validation.isValid) {
       throw new ValidationError(
         validation.errors.join('; '),

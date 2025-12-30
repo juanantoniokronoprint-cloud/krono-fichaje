@@ -142,6 +142,7 @@ export default function ConfirmationDialog({
           className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
           onClick={onCancel}
           aria-hidden="true"
+          style={{ pointerEvents: 'auto' }}
         />
 
         {/* Center dialog */}
@@ -151,7 +152,8 @@ export default function ConfirmationDialog({
 
         <div
           ref={dialogRef}
-          className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full"
+          className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full relative z-10"
+          style={{ pointerEvents: 'auto' }}
         >
           <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
             <div className="sm:flex sm:items-start">

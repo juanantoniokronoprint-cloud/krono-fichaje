@@ -1,7 +1,7 @@
 'use client';
 
 import { Worker, TimeEntry, FilterOptions } from '../types';
-import { WorkerStorage, TimeEntryStorage } from '../lib/storage';
+import { WorkerStorage, TimeEntryStorage } from '../lib/api-storage';
 import { downloadCSV, exportToJSON } from '../lib/utils';
 
 interface ExportButtonsProps {

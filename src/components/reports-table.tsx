@@ -2,7 +2,7 @@
 
 import { Worker, TimeEntry, FilterOptions } from '../types';
 import { formatCurrency } from '../lib/utils';
-import { formatTime, formatDate } from '../lib/storage';
+import { formatTime, formatDate } from '../lib/utils';
 import { isToday } from '../lib/utils';
 import { useState } from 'react';
 

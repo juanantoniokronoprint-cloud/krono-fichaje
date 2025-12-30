@@ -303,15 +303,8 @@ export class TimeEntryStorage {
   }
 
   static async update(id: string, updates: Partial<TimeEntry>): Promise<TimeEntry | null> {
-    // Validate updated entry
-    const validation = validateTimeEntry({ ...updates, id } as TimeEntry);
-    if (!validation.isValid) {
-      throw new StorageError(
-        validation.errors.join('; '),
-        validation.errors.join('. '),
-        'VALIDATION_FAILED'
-      );
-    }
+    // Note: Validation is done on the server side with the complete entry
+    // We don't validate partial updates here to avoid false positives
 
     try {
       const updatedEntry = await apiCall<TimeEntry>(`/time-entries/${id}`, {

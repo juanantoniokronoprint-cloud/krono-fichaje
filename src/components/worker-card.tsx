@@ -1,9 +1,9 @@
 'use client';
 
 import { Worker, TimeEntry } from '../types';
-import { WorkerStorage, TimeEntryStorage } from '../lib/storage';
+import { WorkerStorage, TimeEntryStorage } from '../lib/api-storage';
 import { getInitials, getRandomColor, getStatusColor, formatCurrency } from '../lib/utils';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 interface WorkerCardProps {
   worker: Worker;
@@ -13,26 +13,41 @@ interface WorkerCardProps {
 
 export default function WorkerCard({ worker, onUpdate, onEdit }: WorkerCardProps) {
   const [isLoading, setIsLoading] = useState(false);
+  const [activeEntry, setActiveEntry] = useState<TimeEntry | null>(null);
+  const [totalTodayHours, setTotalTodayHours] = useState(0);
 
-  const activeEntry = TimeEntryStorage.getAll().find(
-    entry => entry.workerId === worker.id && !entry.clockOut
-  );
+  useEffect(() => {
+    const loadEntryData = async () => {
+      try {
+        const allEntries = await TimeEntryStorage.getAll();
+        const entry = allEntries.find(
+          e => e.workerId === worker.id && !e.clockOut
+        );
+        setActiveEntry(entry || null);
 
-  const todayEntries = TimeEntryStorage.getTodayEntries().filter(
-    entry => entry.workerId === worker.id
-  );
-
-  const totalTodayHours = todayEntries.reduce((total, entry) => {
-    if (entry.clockOut && entry.totalHours) {
-      return total + entry.totalHours;
-    }
-    return total;
-  }, 0);
+        // Calculate today's hours
+        const today = new Date().toISOString().split('T')[0];
+        const todayEntries = allEntries.filter(
+          e => (e.clockIn.startsWith(today) || (e.clockOut && e.clockOut.startsWith(today))) && e.workerId === worker.id
+        );
+        const total = todayEntries.reduce((total, entry) => {
+          if (entry.clockOut && entry.totalHours) {
+            return total + entry.totalHours;
+          }
+          return total;
+        }, 0);
+        setTotalTodayHours(total);
+      } catch (error) {
+        console.error('Error loading entry data:', error);
+      }
+    };
+    loadEntryData();
+  }, [worker.id]);
 
   const handleToggleStatus = async () => {
     setIsLoading(true);
     try {
-      WorkerStorage.update(worker.id, { isActive: !worker.isActive });
+      await WorkerStorage.update(worker.id, { isActive: !worker.isActive });
       onUpdate();
     } catch (error) {
       console.error('Error updating worker status:', error);
@@ -46,7 +61,8 @@ export default function WorkerCard({ worker, onUpdate, onEdit }: WorkerCardProps
       setIsLoading(true);
       try {
         // Check if worker has active entries
-        const hasActiveEntries = TimeEntryStorage.getAll().some(
+        const allEntries = await TimeEntryStorage.getAll();
+        const hasActiveEntries = allEntries.some(
           entry => entry.workerId === worker.id && !entry.clockOut
         );
 
@@ -55,7 +71,7 @@ export default function WorkerCard({ worker, onUpdate, onEdit }: WorkerCardProps
           return;
         }
 
-        WorkerStorage.delete(worker.id);
+        await WorkerStorage.delete(worker.id);
         onUpdate();
       } catch (error) {
         console.error('Error deleting worker:', error);
@@ -147,9 +163,6 @@ export default function WorkerCard({ worker, onUpdate, onEdit }: WorkerCardProps
                 hour: '2-digit', 
                 minute: '2-digit' 
               })}
-            </span>
-            <span className="text-xs text-blue-600">
-              {activeEntry.location.address}
             </span>
           </div>
         </div>

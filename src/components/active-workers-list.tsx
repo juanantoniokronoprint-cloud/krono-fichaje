@@ -1,8 +1,8 @@
 'use client';
 
 import { Worker, TimeEntry } from '../types';
-import { WorkerStorage, TimeEntryStorage } from '../lib/storage';
-import { formatTime, formatDuration } from '../lib/storage';
+import { WorkerStorage, TimeEntryStorage } from '../lib/api-storage';
+import { formatTime, formatDuration } from '../lib/utils';
 import { getInitials, getRandomColor, getStatusColor } from '../lib/utils';
 import { useState, useEffect, useMemo } from 'react';
 
@@ -136,17 +136,6 @@ export default function ActiveWorkersList({ workers, timeEntries }: ActiveWorker
                     <div className="text-sm text-gray-600">
                       Entrada: {formatTime(new Date(item.clockIn))}
                     </div>
-                  </div>
-                </div>
-
-                {/* Location info */}
-                <div className="mt-3 pt-3 border-t border-gray-100">
-                  <div className="flex items-center text-sm text-gray-600">
-                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                    <span className="truncate">{item.location.address}</span>
                   </div>
                 </div>
 
