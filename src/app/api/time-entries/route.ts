@@ -4,7 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { query, queryOne, insert, execute } from '@/lib/db';
+import { query, queryOne, execute } from '@/lib/db';
 import { validateTimeEntry } from '@/lib/validators';
 import { ErrorHandler, ErrorType, ErrorSeverity, ValidationError } from '@/lib/error-handler';
 import { TimeEntry, Location } from '@/types';
@@ -22,9 +22,9 @@ function mapRowToTimeEntry(row: any): TimeEntry {
     breakStart: row.break_start ? new Date(row.break_start).toISOString() : undefined,
     breakEnd: row.break_end ? new Date(row.break_end).toISOString() : undefined,
     location: {
-      latitude: parseFloat(row.location_latitude) || 0,
-      longitude: parseFloat(row.location_longitude) || 0,
-      address: row.location_address || '',
+      latitude: 0,
+      longitude: 0,
+      address: '',
     },
     ipAddress: row.ip_address || undefined,
     deviceId: row.device_id || undefined,
@@ -38,7 +38,7 @@ function mapRowToTimeEntry(row: any): TimeEntry {
     approvalDate: row.approval_date ? new Date(row.approval_date).toISOString() : undefined,
     approvalStatus: row.approval_status || 'pending',
     notes: row.notes || undefined,
-    tags: row.tags ? JSON.parse(row.tags) : undefined,
+    tags: row.tags && row.tags !== 'null' && row.tags !== null ? (typeof row.tags === 'string' ? JSON.parse(row.tags) : row.tags) : undefined,
     billable: row.billable ? Boolean(row.billable) : undefined,
     hourlyRate: row.hourly_rate ? parseFloat(row.hourly_rate) : undefined,
   };
@@ -55,9 +55,9 @@ function mapTimeEntryToRow(entry: Partial<TimeEntry>): any {
     clock_out: entry.clockOut ? new Date(entry.clockOut).toISOString().slice(0, 19).replace('T', ' ') : null,
     break_start: entry.breakStart ? new Date(entry.breakStart).toISOString().slice(0, 19).replace('T', ' ') : null,
     break_end: entry.breakEnd ? new Date(entry.breakEnd).toISOString().slice(0, 19).replace('T', ' ') : null,
-    location_latitude: entry.location?.latitude || null,
-    location_longitude: entry.location?.longitude || null,
-    location_address: entry.location?.address || null,
+    location_latitude: 0,
+    location_longitude: 0,
+    location_address: '',
     ip_address: entry.ipAddress || null,
     device_id: entry.deviceId || null,
     total_hours: entry.totalHours || null,
@@ -103,8 +103,7 @@ export async function GET(request: NextRequest) {
       params.push(endDate);
     }
 
-    sql += ' ORDER BY clock_in DESC LIMIT ?';
-    params.push(limit);
+    sql += ` ORDER BY clock_in DESC LIMIT ${limit}`;
 
     const rows = await query(sql, params);
     const entries = rows.map(mapRowToTimeEntry);
@@ -180,7 +179,7 @@ export async function POST(request: NextRequest) {
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
-    await insert(sql, [
+    await query(sql, [
       row.id,
       row.worker_id,
       row.project_id,

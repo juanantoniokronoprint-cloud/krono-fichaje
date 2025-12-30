@@ -483,7 +483,6 @@ export class SettingsStorage {
 
 // Re-export utility functions from storage.ts for compatibility
 export {
-  LocationService,
   formatTime,
   formatDate,
   formatDateTime,

@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect, ReactNode } from 'react';
-import { WorkerStorage } from '../lib/api-storage';
+import React, { useState, useEffect, ReactNode } from 'react';
+import { WorkerStorage, SettingsStorage } from '../lib/api-storage';
 import { Worker } from '../types';
 
 interface PinAuthGuardProps {
@@ -9,8 +9,6 @@ interface PinAuthGuardProps {
   adminOnly?: boolean;
   onAuthenticated?: (worker: Worker | 'admin') => void;
 }
-
-const ADMIN_PIN = '123456'; // PIN de administrador
 
 export default function PinAuthGuard({ 
   children, 
@@ -24,6 +22,7 @@ export default function PinAuthGuard({
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [workers, setWorkers] = useState<Worker[]>([]);
+  const [adminPin, setAdminPin] = useState('123456');
 
   useEffect(() => {
     // Solo verificar sesión si estamos en el cliente
@@ -32,50 +31,49 @@ export default function PinAuthGuard({
       return;
     }
 
-    // Verificar si ya hay una sesión activa en localStorage
-    const session = localStorage.getItem('pinAuthSession');
-    if (session) {
+    // Cargar PIN de administrador y trabajadores
+    const loadInitialData = async () => {
       try {
-        const sessionData = JSON.parse(session);
-        const now = Date.now();
-        // Sesión válida por 8 horas
-        if (now - sessionData.timestamp < 8 * 60 * 60 * 1000) {
-          setIsAuthenticated(true);
-          setIsAdmin(sessionData.isAdmin);
-          if (sessionData.worker) {
-            setAuthenticatedWorker(sessionData.worker);
+        const [settings, allWorkers] = await Promise.all([
+          SettingsStorage.getAll(),
+          WorkerStorage.getAll()
+        ]);
+        
+        if (settings.admin_pin) {
+          setAdminPin(settings.admin_pin);
+        }
+        
+        setWorkers(allWorkers.filter(w => w.isActive));
+
+        // Verificar si ya hay una sesión activa en localStorage
+        const session = localStorage.getItem('pinAuthSession');
+        if (session) {
+          try {
+            const sessionData = JSON.parse(session);
+            const now = Date.now();
+            // Sesión válida por 8 horas
+            if (now - sessionData.timestamp < 8 * 60 * 60 * 1000) {
+              setIsAuthenticated(true);
+              setIsAdmin(sessionData.isAdmin);
+              if (sessionData.worker) {
+                // Actualizar los datos del trabajador con los más recientes de la BD
+                const currentWorker = allWorkers.find(w => w.id === sessionData.worker.id);
+                setAuthenticatedWorker(currentWorker || sessionData.worker);
+              }
+              onAuthenticated?.(sessionData.isAdmin ? 'admin' : sessionData.worker);
+            }
+          } catch (error) {
+            localStorage.removeItem('pinAuthSession');
           }
-          onAuthenticated?.(sessionData.isAdmin ? 'admin' : sessionData.worker);
-          // Cargar trabajadores en background pero no bloquear la UI
-          WorkerStorage.getAll().then(allWorkers => {
-            setWorkers(allWorkers.filter(w => w.isActive));
-          }).catch(error => {
-            console.error('Error loading workers:', error);
-          });
-          setIsLoading(false);
-          return;
         }
       } catch (error) {
-        // Invalidar sesión si hay error
-        localStorage.removeItem('pinAuthSession');
-      }
-    }
-
-    // Cargar trabajadores
-    const loadWorkers = async () => {
-      try {
-        const allWorkers = await WorkerStorage.getAll();
-        setWorkers(allWorkers.filter(w => w.isActive));
-      } catch (error) {
-        console.error('Error loading workers:', error);
-        // Permitir mostrar el formulario aunque falle la carga
-        setWorkers([]);
+        console.error('Error loading initial data:', error);
       } finally {
         setIsLoading(false);
       }
     };
 
-    loadWorkers();
+    loadInitialData();
   }, [onAuthenticated]);
 
   const handlePinSubmit = (e: React.FormEvent) => {
@@ -87,7 +85,7 @@ export default function PinAuthGuard({
     setMessage('');
 
     // Verificar PIN de administrador primero
-    if (trimmedPin === ADMIN_PIN) {
+    if (trimmedPin === adminPin) {
       setIsAuthenticated(true);
       setIsAdmin(true);
       setAuthenticatedWorker(null);
@@ -268,6 +266,16 @@ export default function PinAuthGuard({
     );
   }
 
+  // Clonar hijos y pasarles la información de autenticación si son componentes funcionales
+  const childrenWithProps = React.Children.map(children, child => {
+    if (React.isValidElement(child)) {
+      return React.cloneElement(child as React.ReactElement<any>, { 
+        auth: { isAdmin, worker: authenticatedWorker } 
+      });
+    }
+    return child;
+  });
+
   return (
     <div>
       {/* Barra de navegación con logout y links */}
@@ -289,6 +297,9 @@ export default function PinAuthGuard({
                   <a href="/time-tracking" className="text-sm text-gray-600 hover:text-blue-600 font-medium">
                     Control de Tiempo
                   </a>
+                  <a href="/settings" className="text-sm text-gray-600 hover:text-blue-600 font-medium">
+                    Configuración
+                  </a>
                 </>
               )}
               {!isAdmin && (
@@ -306,7 +317,7 @@ export default function PinAuthGuard({
           </div>
         </div>
       </div>
-      {children}
+      {childrenWithProps}
     </div>
   );
 }

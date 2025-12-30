@@ -30,8 +30,12 @@ function ReportsPageContent() {
   const loadData = async () => {
     setIsLoading(true);
     try {
-      const allWorkers = await WorkerStorage.getAll();
-      const allTimeEntries = await TimeEntryStorage.getAll();
+      console.log('Fetching reports data...');
+      const [allWorkers, allTimeEntries] = await Promise.all([
+        WorkerStorage.getAll(),
+        TimeEntryStorage.getAll()
+      ]);
+      console.log(`Loaded ${allWorkers.length} workers and ${allTimeEntries.length} time entries`);
       setWorkers(allWorkers);
       setTimeEntries(allTimeEntries);
     } catch (error) {
@@ -59,8 +63,23 @@ function ReportsPageContent() {
   // Calculate summary statistics
   const filteredEntries = timeEntries.filter(entry => {
     if (filters.dateRange) {
-      const entryDate = entry.clockIn.split('T')[0];
-      if (entryDate < filters.dateRange.start || entryDate > filters.dateRange.end) {
+      try {
+        // Parse entry date - handle both ISO strings and Date objects
+        const entryDateObj = new Date(entry.clockIn);
+        const entryDateStr = entryDateObj.toISOString().split('T')[0];
+        
+        // Normalize filter dates
+        const startDate = new Date(filters.dateRange.start);
+        startDate.setHours(0, 0, 0, 0);
+        const endDate = new Date(filters.dateRange.end);
+        endDate.setHours(23, 59, 59, 999);
+        
+        // Compare dates
+        if (entryDateObj < startDate || entryDateObj > endDate) {
+          return false;
+        }
+      } catch (e) {
+        console.error('Error filtering date:', entry.clockIn, e);
         return false;
       }
     }

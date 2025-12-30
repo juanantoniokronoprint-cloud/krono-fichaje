@@ -15,6 +15,7 @@ export default function WorkerForm({ worker, onSubmit, onCancel }: WorkerFormPro
   const [formData, setFormData] = useState({
     name: '',
     email: '',
+    employeeNumber: '',
     position: '',
     department: '',
     hireDate: new Date().toISOString().split('T')[0],
@@ -30,6 +31,7 @@ export default function WorkerForm({ worker, onSubmit, onCancel }: WorkerFormPro
       setFormData({
         name: worker.name,
         email: worker.email,
+        employeeNumber: worker.employeeNumber || '',
         position: worker.position,
         department: worker.department,
         hireDate: worker.hireDate.split('T')[0],
@@ -50,6 +52,10 @@ export default function WorkerForm({ worker, onSubmit, onCancel }: WorkerFormPro
       newErrors.email = 'El email es obligatorio';
     } else if (!validateEmail(formData.email)) {
       newErrors.email = 'El formato del email no es válido';
+    }
+
+    if (!formData.employeeNumber.trim()) {
+      newErrors.employeeNumber = 'El PIN/Número de empleado es obligatorio';
     }
 
     if (!formData.position.trim()) {
@@ -87,6 +93,7 @@ export default function WorkerForm({ worker, onSubmit, onCancel }: WorkerFormPro
       const workerData = {
         name: formData.name.trim(),
         email: formData.email.trim(),
+        employeeNumber: formData.employeeNumber.trim(),
         position: formData.position.trim(),
         department: formData.department.trim(),
         hireDate: formData.hireDate,
@@ -160,6 +167,23 @@ export default function WorkerForm({ worker, onSubmit, onCancel }: WorkerFormPro
                 placeholder="juan.perez@empresa.com"
               />
               {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
+            </div>
+
+            <div>
+              <label htmlFor="employeeNumber" className="block text-sm font-medium text-gray-700 mb-1">
+                PIN / Número de Empleado *
+              </label>
+              <input
+                type="text"
+                id="employeeNumber"
+                value={formData.employeeNumber}
+                onChange={(e) => handleInputChange('employeeNumber', e.target.value)}
+                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  errors.employeeNumber ? 'border-red-500' : 'border-gray-300'
+                }`}
+                placeholder="1234"
+              />
+              {errors.employeeNumber && <p className="text-red-500 text-sm mt-1">{errors.employeeNumber}</p>}
             </div>
 
             <div>

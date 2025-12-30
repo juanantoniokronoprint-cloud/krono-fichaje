@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Worker, TimeEntry } from '../types';
-import { WorkerStorage, TimeEntryStorage, LocationService } from '../lib/api-storage';
+import { WorkerStorage, TimeEntryStorage } from '../lib/api-storage';
 import { TimeCalculator } from '../lib/time-calculations';
 import { ErrorHandler, ErrorType, ErrorSeverity, BusinessLogicError } from '../lib/error-handler';
 import { useNotificationContext } from './notification-provider';
@@ -81,7 +81,7 @@ export default function WorkerClock({ onTimeEntry }: WorkerClockProps) {
         );
       }
 
-      const location = await LocationService.getCurrentLocation();
+      const location = { latitude: 0, longitude: 0, address: '' };
       
       if (hasActiveEntry && existingEntry) {
         // Clock out

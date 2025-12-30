@@ -221,9 +221,9 @@ Validar que el sistema puede:
 
 ### ⚠️ Observaciones
 
-1. **Geolocalización:** El sistema solicita permisos de geolocalización, necesario para validar la ubicación del trabajador al fichar.
+1. **Seguridad:** El acceso está protegido por PIN. Solo los administradores pueden ver la lista completa de trabajadores y reportes.
 
-2. **Sesión:** La sesión del administrador se mantiene activa durante 8 horas, permitiendo trabajar sin necesidad de volver a introducir el PIN.
+2. **Sesión:** La sesión se mantiene activa durante 8 horas.
 
 3. **Tiempo Real:** El sistema actualiza el estado de los trabajadores en tiempo real cada 5 segundos.
 

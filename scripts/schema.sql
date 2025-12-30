@@ -74,3 +74,14 @@ CREATE TABLE IF NOT EXISTS time_entries (
   FOREIGN KEY (approved_by) REFERENCES workers(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Tabla de configuración (settings)
+CREATE TABLE IF NOT EXISTS settings (
+  setting_key VARCHAR(255) PRIMARY KEY,
+  setting_value TEXT NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Insertar configuración por defecto
+INSERT IGNORE INTO settings (setting_key, setting_value) VALUES ('admin_pin', '123456');
+

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Worker, TimeEntry, Location } from '../types';
-import { WorkerStorage, TimeEntryStorage, LocationService, calculateTotalHours, calculateOvertime } from '../lib/storage';
+import { WorkerStorage, TimeEntryStorage, calculateTotalHours, calculateOvertime } from '../lib/storage';
 import { formatTime, formatDuration } from '../lib/storage';
 import { ErrorHandler, ErrorType, ErrorSeverity, BusinessLogicError } from '../lib/error-handler';
 import { useNotificationContext } from './notification-provider';
@@ -26,22 +26,29 @@ export default function TimeTracker({ worker, onUpdate }: TimeTrackerProps) {
 
   useEffect(() => {
     // Load active entry for this worker
-    const entries = TimeEntryStorage.getAll();
-    const entry = entries.find(e => e.workerId === worker.id && !e.clockOut);
-    setActiveEntry(entry || null);
+    const loadActiveEntry = async () => {
+      try {
+        const entries = await TimeEntryStorage.getAll();
+        const entry = entries.find(e => e.workerId === worker.id && !e.clockOut);
+        setActiveEntry(entry || null);
 
-    // Check if worker is on break
-    if (entry?.breakStart && !entry?.breakEnd) {
-      setIsOnBreak(true);
-    }
+        // Check if worker is on break
+        if (entry?.breakStart && !entry?.breakEnd) {
+          setIsOnBreak(true);
+        }
 
-    // Start elapsed time timer if active
-    if (entry) {
-      const timer = setInterval(() => {
-        updateElapsedTime(entry.clockIn);
-      }, 1000);
-      return () => clearInterval(timer);
-    }
+        // Start elapsed time timer if active
+        if (entry) {
+          const timer = setInterval(() => {
+            updateElapsedTime(entry.clockIn);
+          }, 1000);
+          return () => clearInterval(timer);
+        }
+      } catch (error) {
+        console.error('Error loading active entry:', error);
+      }
+    };
+    loadActiveEntry();
   }, [worker.id]);
 
   useEffect(() => {
@@ -79,7 +86,8 @@ export default function TimeTracker({ worker, onUpdate }: TimeTrackerProps) {
 
     try {
       // Check if worker already has an active entry (prevent double clock-in)
-      const existingActiveEntry = TimeEntryStorage.getAll().find(
+      const allEntries = await TimeEntryStorage.getAll();
+      const existingActiveEntry = allEntries.find(
         entry => entry.workerId === worker.id && !entry.clockOut
       );
 
@@ -91,19 +99,15 @@ export default function TimeTracker({ worker, onUpdate }: TimeTrackerProps) {
         );
       }
 
-      // Get current location
-      const currentLocation = await LocationService.getCurrentLocation();
-      setLocation(currentLocation);
-
       // Create new time entry
       const newEntry: Omit<TimeEntry, 'id'> = {
         workerId: worker.id,
         clockIn: new Date().toISOString(),
-        location: currentLocation,
+        location: { latitude: 0, longitude: 0, address: '' },
         approvalStatus: 'auto-approved',
       };
 
-      const createdEntry = TimeEntryStorage.create(newEntry);
+      const createdEntry = await TimeEntryStorage.create(newEntry);
       setActiveEntry(createdEntry);
       updateElapsedTime(createdEntry.clockIn);
       onUpdate();
@@ -154,7 +158,11 @@ export default function TimeTracker({ worker, onUpdate }: TimeTrackerProps) {
         updatedEntry.breakEnd = clockOutTime;
       }
 
-      TimeEntryStorage.update(activeEntry.id, updatedEntry);
+      const updated = await TimeEntryStorage.update(activeEntry.id, updatedEntry);
+      if (!updated) {
+        throw new Error('No se pudo actualizar el registro de salida');
+      }
+
       setActiveEntry(null);
       setIsOnBreak(false);
       setElapsedTime('00:00:00');
@@ -183,7 +191,7 @@ export default function TimeTracker({ worker, onUpdate }: TimeTrackerProps) {
     setIsLoading(true);
     try {
       const breakStartTime = new Date().toISOString();
-      TimeEntryStorage.update(activeEntry.id, { breakStart: breakStartTime });
+      await TimeEntryStorage.update(activeEntry.id, { breakStart: breakStartTime });
       setIsOnBreak(true);
       onUpdate();
       notifications.showInfo('Descanso iniciado');
@@ -206,7 +214,7 @@ export default function TimeTracker({ worker, onUpdate }: TimeTrackerProps) {
     setIsLoading(true);
     try {
       const breakEndTime = new Date().toISOString();
-      TimeEntryStorage.update(activeEntry.id, { breakEnd: breakEndTime });
+      await TimeEntryStorage.update(activeEntry.id, { breakEnd: breakEndTime });
       setIsOnBreak(false);
       onUpdate();
       notifications.showInfo('Descanso finalizado');

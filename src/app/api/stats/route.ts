@@ -62,9 +62,9 @@ export async function GET(request: NextRequest) {
         breakStart: row.break_start ? new Date(row.break_start).toISOString() : undefined,
         breakEnd: row.break_end ? new Date(row.break_end).toISOString() : undefined,
         location: {
-          latitude: parseFloat(row.location_latitude) || 0,
-          longitude: parseFloat(row.location_longitude) || 0,
-          address: row.location_address || '',
+          latitude: 0,
+          longitude: 0,
+          address: '',
         },
         ipAddress: row.ip_address || undefined,
         deviceId: row.device_id || undefined,
@@ -78,7 +78,7 @@ export async function GET(request: NextRequest) {
         approvalDate: row.approval_date ? new Date(row.approval_date).toISOString() : undefined,
         approvalStatus: row.approval_status || 'pending',
         notes: row.notes || undefined,
-        tags: row.tags ? JSON.parse(row.tags) : undefined,
+        tags: row.tags && row.tags !== 'null' && row.tags !== null ? (typeof row.tags === 'string' ? JSON.parse(row.tags) : row.tags) : undefined,
         billable: row.billable ? Boolean(row.billable) : undefined,
         hourlyRate: row.hourly_rate ? parseFloat(row.hourly_rate) : undefined,
       }));

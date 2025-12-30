@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Worker, TimeEntry } from '../types';
-import { WorkerStorage, TimeEntryStorage, LocationService } from '../lib/storage';
+import { WorkerStorage, TimeEntryStorage } from '../lib/storage';
 import { TimeCalculator } from '../lib/time-calculations';
 
 interface WorkerPinLoginProps {
@@ -86,7 +86,7 @@ export default function WorkerPinLogin({ onClockIn, onClockOut }: WorkerPinLogin
     setMessage('');
 
     try {
-      const location = await LocationService.getCurrentLocation();
+      const location = { latitude: 0, longitude: 0, address: '' };
       const workerId = authenticatedWorker.id;
 
       const hasActiveEntry = TimeEntryStorage.getActiveEntries()
